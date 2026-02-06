@@ -334,21 +334,95 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script>
-// Глобальные переменные
-var editorData = {
-    theme: 'pirates',
-    mapType: 'pirates',
-    customMapUrl: null,
-    maxAttempts: 3,
-    timerDuration: 30,
-    pointsPerQuestion: 10,
-    hintsAvailable: 2,
-    showCorrectAnswer: true,
-    finalReward: 'treasure',
-    finalMessage: 'Поздравляем! Вы нашли все сокровища!',
-    questions: [],
-    mapPoints: []
-};
+// ... (предыдущий код функций до exportStandaloneGame оставить без изменений)
+
+// Обновить код iframe - ИСПРАВЛЕННАЯ ВЕРСИЯ
+function updateIframeCode() {
+    collectSettings();
+    
+    if (editorData.questions.length === 0) {
+        alert('❌ Сначала добавьте вопросы!');
+        return;
+    }
+
+    try {
+        // Кодируем данные в Base64, чтобы передать их через URL
+        // Используем btoa(unescape(encodeURIComponent)) для поддержки кириллицы
+        var gameDataString = JSON.stringify(editorData);
+        var encodedData = btoa(unescape(encodeURIComponent(gameDataString)));
+        
+        // ВАЖНО: Замените 'index.html' на прямой URL, где вы разместите этот редактор/движок
+        var baseUrl = window.location.href.split('?')[0]; 
+        var finalUrl = baseUrl + '?data=' + encodedData;
+
+        var iframeCode = '<iframe src="' + finalUrl + '" width="100%" height="600" frameborder="0" allowfullscreen style="border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>';
+        
+        document.getElementById('iframeCode').textContent = iframeCode;
+        alert('✅ Код обновлен! Теперь он содержит все ваши вопросы.');
+    } catch (e) {
+        console.error(e);
+        alert('❌ Ошибка при создании кода. Возможно, данных слишком много для одной ссылки.');
+    }
+}
+
+// Инициализация - ИСПРАВЛЕННАЯ ВЕРСИЯ (для чтения данных из iframe)
+function init() {
+    var urlParams = new URLSearchParams(window.location.search);
+    var sharedData = urlParams.get('data');
+    
+    if (sharedData) {
+        // РЕЖИМ ИГРЫ (через iframe)
+        try {
+            var decodedData = JSON.parse(decodeURIComponent(escape(atob(sharedData))));
+            renderGameMode(decodedData);
+        } catch(e) {
+            document.body.innerHTML = '<div style="padding:40px; color:white; text-align:center;"><h2>Ошибка загрузки данных игры</h2></div>';
+        }
+        return;
+    }
+    
+    // ОБЫЧНЫЙ РЕЖИМ РЕДАКТОРА
+    renderThemes();
+    renderMapSelector();
+    
+    var saved = localStorage.getItem('treasureHuntEditor');
+    if (saved) {
+        try {
+            editorData = JSON.parse(saved);
+            applyDataToFields();
+        } catch(e) { console.error('Ошибка загрузки:', e); }
+    } else {
+        addQuestion();
+    }
+}
+
+// Вспомогательная функция для отображения игры вместо редактора
+function renderGameMode(data) {
+    var theme = themes.find(t => t.id === data.theme) || themes[0];
+    document.body.style.background = 'linear-gradient(135deg, ' + theme.colors.primary + ', ' + theme.colors.bg + ')';
+    document.body.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px;">
+            <div class="container" style="max-width: 600px; padding: 40px; text-align: center;">
+                <h1 style="color:${theme.colors.primary}">${theme.icon} ${data.theme.toUpperCase()}</h1>
+                <p style="font-size: 1.2em; margin: 20px 0;">Приготовьтесь! Вас ждет <b>${data.questions.length}</b> заданий.</p>
+                <button class="btn btn-primary" onclick="alert('Здесь запускается ваша логика игры!')">Начать приключение</button>
+            </div>
+        </div>`;
+}
+
+function applyDataToFields() {
+    document.getElementById('maxAttempts').value = editorData.maxAttempts;
+    document.getElementById('timerDuration').value = editorData.timerDuration;
+    document.getElementById('pointsPerQuestion').value = editorData.pointsPerQuestion;
+    document.getElementById('hintsAvailable').value = editorData.hintsAvailable;
+    document.getElementById('showCorrectAnswer').checked = editorData.showCorrectAnswer;
+    document.getElementById('finalReward').value = editorData.finalReward;
+    document.getElementById('finalMessage').value = editorData.finalMessage;
+    renderQuestions();
+    updateMapPoints();
+    updateMapTheme();
+}
+// ... остальной код FileSaver и завершение скрипта
 
 var themes = [
     {id:'pirates', name:'Пираты', icon:'🏴‍☠️', colors:{primary:'#8b4513', accent:'#ffd700', bg:'#f4e4c1'}},
